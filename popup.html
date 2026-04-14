@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 340px;
+      font-family: Arial, sans-serif;
+      padding: 16px;
+      background: #f9f9f9;
+    }
+    h2 { margin: 0 0 12px; font-size: 16px; }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #3367d6; }
+    #result { margin-top: 14px; }
+    .phishing {
+      background: #fdecea;
+      border-left: 4px solid #e53935;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .safe {
+      background: #e8f5e9;
+      border-left: 4px solid #43a047;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .reason { font-size: 12px; margin-top: 8px; color: #444; }
+    #loading { color: #888; font-size: 13px; text-align: center; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>🔍 AI Phishing Detector</h2>
+  <p style="font-size:12px;color:#666;">Open an email in Gmail, then click analyze.</p>
+  <button id="analyzeBtn">Analyze Current Email</button>
+  <div id="loading" style="display:none;">⏳ Analyzing with AI...</div>
+  <div id="result"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
