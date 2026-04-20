@@ -1,49 +1,320 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      width: 340px;
-      font-family: Arial, sans-serif;
-      padding: 16px;
-      background: #f9f9f9;
-    }
-    h2 { margin: 0 0 12px; font-size: 16px; }
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #4285f4;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    button:hover { background: #3367d6; }
-    #result { margin-top: 14px; }
-    .phishing {
-      background: #fdecea;
-      border-left: 4px solid #e53935;
-      padding: 10px;
-      border-radius: 4px;
-    }
-    .safe {
-      background: #e8f5e9;
-      border-left: 4px solid #43a047;
-      padding: 10px;
-      border-radius: 4px;
-    }
-    .reason { font-size: 12px; margin-top: 8px; color: #444; }
-    #loading { color: #888; font-size: 13px; text-align: center; margin-top: 10px; }
-  </style>
-</head>
-<body>
-  <h2>🔍 AI Phishing Detector</h2>
-  <p style="font-size:12px;color:#666;">Open an email in Gmail, then click analyze.</p>
-  <button id="analyzeBtn">Analyze Current Email</button>
-  <div id="loading" style="display:none;">⏳ Analyzing with AI...</div>
-  <div id="result"></div>
-  <script src="popup.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        width: 360px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #0f0f1a;
+        color: #e0e0f0;
+        padding: 20px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .logo {
+        font-size: 26px;
+      }
+
+      .title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #a78bfa;
+        letter-spacing: 0.5px;
+      }
+
+      .subtitle {
+        font-size: 11px;
+        color: #6b6b8a;
+        margin-top: 2px;
+      }
+
+      /* API Key Section */
+      .api-section {
+        background: #1a1a2e;
+        border: 1px solid #2a2a4a;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+
+      .api-label {
+        font-size: 11px;
+        color: #a78bfa;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 8px;
+      }
+
+      .api-input-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      input[type="password"],
+      input[type="text"] {
+        flex: 1;
+        background: #0f0f1a;
+        border: 1px solid #2a2a4a;
+        border-radius: 7px;
+        color: #e0e0f0;
+        padding: 8px 12px;
+        font-size: 12px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      input:focus {
+        border-color: #a78bfa;
+      }
+
+      .save-btn {
+        background: #a78bfa;
+        color: #0f0f1a;
+        border: none;
+        border-radius: 7px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .save-btn:hover {
+        background: #c4b5fd;
+      }
+
+      .key-status {
+        font-size: 11px;
+        margin-top: 8px;
+        color: #6b6b8a;
+      }
+
+      .key-status.ok {
+        color: #34d399;
+      }
+
+      /* Analyze Button */
+      .analyze-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.5px;
+        transition:
+          opacity 0.2s,
+          transform 0.1s;
+        margin-bottom: 14px;
+      }
+
+      .analyze-btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+      .analyze-btn:active {
+        transform: translateY(0);
+      }
+      .analyze-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Loading */
+      .loading {
+        text-align: center;
+        color: #6b6b8a;
+        font-size: 13px;
+        padding: 14px 0;
+        display: none;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #2a2a4a;
+        border-top-color: #a78bfa;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Result Card */
+      .result-card {
+        border-radius: 10px;
+        padding: 14px;
+        display: none;
+      }
+
+      .result-card.phishing {
+        background: #1f0a0a;
+        border: 1px solid #dc2626;
+      }
+
+      .result-card.legitimate {
+        background: #0a1f0f;
+        border: 1px solid #16a34a;
+      }
+
+      .result-card.error {
+        background: #1a140a;
+        border: 1px solid #d97706;
+      }
+
+      .verdict-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .verdict-label {
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .phishing .verdict-label {
+        color: #f87171;
+      }
+      .legitimate .verdict-label {
+        color: #4ade80;
+      }
+      .error .verdict-label {
+        color: #fbbf24;
+      }
+
+      .confidence-badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 20px;
+      }
+
+      .phishing .confidence-badge {
+        background: #7f1d1d;
+        color: #fca5a5;
+      }
+      .legitimate .confidence-badge {
+        background: #14532d;
+        color: #86efac;
+      }
+
+      .divider {
+        border: none;
+        border-top: 1px solid #2a2a4a;
+        margin: 10px 0;
+      }
+
+      .section-title {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #6b6b8a;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .reasons-list {
+        list-style: none;
+        padding: 0;
+      }
+
+      .reasons-list li {
+        font-size: 12px;
+        color: #c4c4d8;
+        padding: 3px 0;
+        padding-left: 14px;
+        position: relative;
+      }
+
+      .reasons-list li::before {
+        content: "›";
+        position: absolute;
+        left: 0;
+        color: #a78bfa;
+      }
+
+      .red-flags-list li::before {
+        color: #f87171;
+      }
+
+      .footer {
+        text-align: center;
+        font-size: 10px;
+        color: #3a3a5a;
+        margin-top: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">🛡️</div>
+      <div>
+        <div class="title">AI Phishing Detector</div>
+        <div class="subtitle">Powered by Groq · LLaMA 3</div>
+      </div>
+    </div>
+
+    <!-- API Key Section -->
+    <div class="api-section">
+      <div class="api-label">🔑 Groq API Key</div>
+      <div class="api-input-row">
+        <input type="password" id="apiKeyInput" placeholder="gsk_..." />
+        <button class="save-btn" id="saveKeyBtn">Save</button>
+      </div>
+      <div class="key-status" id="keyStatus">No key saved yet.</div>
+    </div>
+
+    <button class="analyze-btn" id="analyzeBtn">
+      🔍 Analyze Current Email
+    </button>
+
+    <div class="loading" id="loading">
+      <span class="spinner"></span> Analyzing with AI...
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="verdict-row">
+        <span class="verdict-label" id="verdictLabel"></span>
+        <span class="confidence-badge" id="confidenceBadge"></span>
+      </div>
+      <hr class="divider" />
+      <div class="section-title">Analysis</div>
+      <ul class="reasons-list" id="reasonsList"></ul>
+      <div id="redFlagsSection" style="display: none; margin-top: 10px">
+        <div class="section-title" style="color: #f87171">🚩 Red Flags</div>
+        <ul class="reasons-list red-flags-list" id="redFlagsList"></ul>
+      </div>
+    </div>
+
+    <div class="footer">Open an email in Gmail, then click Analyze</div>
+
+    <script src="popup.js"></script>
+  </body>
 </html>
