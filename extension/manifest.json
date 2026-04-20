@@ -2,11 +2,11 @@
   "manifest_version": 3,
   "name": "AI Phishing Detector",
   "version": "1.0",
-  "description": "Detects phishing emails using Claude AI",
-  "permissions": ["activeTab", "scripting"],
+  "description": "Detects phishing emails in Gmail using Groq AI",
+  "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "https://mail.google.com/*",
-    "https://api.anthropic.com/*"
+    "https://api.groq.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
