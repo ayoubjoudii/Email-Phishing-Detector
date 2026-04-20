@@ -1,29 +1,6 @@
-chrome.storage.local.get("groqApiKey", ({ groqApiKey }) => {
-  if (groqApiKey) {
-    document.getElementById("apiKeyInput").value = groqApiKey;
-    document.getElementById("keyStatus").textContent = "✅ API key saved.";
-    document.getElementById("keyStatus").classList.add("ok");
-  }
-});
+// No API key setup needed - backend handles authentication
 
-document.getElementById("saveKeyBtn").addEventListener("click", () => {
-  const key = document.getElementById("apiKeyInput").value.trim();
-  if (!key) return;
-  chrome.storage.local.set({ groqApiKey: key }, () => {
-    const status = document.getElementById("keyStatus");
-    status.textContent = "✅ API key saved!";
-    status.classList.add("ok");
-  });
-});
-
-document.getElementById("analyzeBtn").addEventListener("click", async () => {
-  const { groqApiKey } = await chrome.storage.local.get("groqApiKey");
-
-  if (!groqApiKey) {
-    showError("Please enter and save your Groq API key first.");
-    return;
-  }
-
+document.getElementById("analyzeBtn").addEventListener("click", () => {
   const loading = document.getElementById("loading");
   const resultCard = document.getElementById("resultCard");
   const analyzeBtn = document.getElementById("analyzeBtn");
@@ -32,65 +9,76 @@ document.getElementById("analyzeBtn").addEventListener("click", async () => {
   loading.style.display = "block";
   analyzeBtn.disabled = true;
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    
+    chrome.tabs.sendMessage(tab.id, { action: "getEmailText" }, (response) => {
+      // Handle chrome.runtime.lastError
+      if (chrome.runtime.lastError) {
+        loading.style.display = "none";
+        analyzeBtn.disabled = false;
+        showError("Make sure Gmail page is open. Refresh and try again.");
+        return;
+      }
+      
+      if (!response || response.error) {
+        loading.style.display = "none";
+        analyzeBtn.disabled = false;
+        showError(response?.error || "Could not read email. Make sure an email is open in Gmail.");
+        return;
+      }
 
-  chrome.tabs.sendMessage(tab.id, { action: "getEmailText" }, async (response) => {
-    if (!response || response.error) {
-      loading.style.display = "none";
-      analyzeBtn.disabled = false;
-      showError(response?.error || "Could not read email. Make sure an email is open in Gmail.");
-      return;
-    }
-
-    try {
-      const result = await analyzeWithGroq(
-        `Subject: ${response.subject}\n\n${response.body}`,
-        groqApiKey
-      );
-      loading.style.display = "none";
-      analyzeBtn.disabled = false;
-      displayResult(result);
-    } catch (err) {
-      loading.style.display = "none";
-      analyzeBtn.disabled = false;
-      showError("API Error: " + err.message);
-    }
+      // Got email text, now analyze it
+      analyzeAndDisplay(response, loading, analyzeBtn);
+    });
   });
 });
 
-async function analyzeWithGroq(emailText, apiKey) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are a cybersecurity expert. Analyze this email for phishing.
-Return ONLY a JSON object with:
-- "verdict": "phishing" or "legitimate"
-- "confidence": number 0-100
-- "reasons": array of short explanation strings
-- "red_flags": array of specific suspicious elements (empty array if none)
+async function analyzeAndDisplay(response, loading, analyzeBtn) {
+  try {
+    const result = await analyzeWithBackend(
+      `Subject: ${response.subject}\n\n${response.body}`
+    );
+    loading.style.display = "none";
+    analyzeBtn.disabled = false;
+    displayResult(result);
+  } catch (err) {
+    loading.style.display = "none";
+    analyzeBtn.disabled = false;
+    showError("API Error: " + err.message);
+  }
+}
 
-Email:
-"""
-${emailText}
-"""
+async function analyzeWithBackend(emailText) {
+  console.log("[Popup] Analyzing email with backend...");
+  console.log("[Popup] Backend URL:", BACKEND_URL);
+  
+  try {
+    const response = await fetch(`${BACKEND_URL}/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ emailText })
+    });
 
-JSON only, no extra text.`
-      }]
-    })
-  });
+    console.log("[Popup] Response status:", response.status);
+    
+    const data = await response.json();
+    console.log("[Popup] Backend response:", data);
 
-  const data = await response.json();
-  const text = data.choices[0].message.content;
-  const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+    if (!response.ok) {
+      const errorMsg = data.error || `Backend error: ${response.status}`;
+      console.error("[Popup] Backend error:", errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    console.log("[Popup] Analysis result:", data);
+    return data;
+  } catch (err) {
+    console.error("[Popup] Error:", err.message);
+    throw err;
+  }
 }
 
 function displayResult(result) {

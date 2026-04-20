@@ -1,3 +1,7 @@
+// Phishing Detector API Backend
+// Deployed on Render.com
+// Set environment variable: GROQ_API_KEY=your_groq_api_key
+
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
@@ -11,6 +15,12 @@ app.post("/analyze", async (req, res) => {
 
   if (!emailText) {
     return res.status(400).json({ error: "No email text provided" });
+  }
+
+  // Check if API key is configured
+  if (!process.env.GROQ_API_KEY) {
+    console.error("ERROR: GROQ_API_KEY environment variable not set!");
+    return res.status(500).json({ error: "Server not configured: GROQ_API_KEY missing" });
   }
 
   try {
@@ -42,13 +52,28 @@ JSON only, no extra text.`
       })
     });
 
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`Groq API error ${response.status}:`, errorData);
+      return res.status(response.status).json({ error: `Groq API error: ${errorData}` });
+    }
+
     const data = await response.json();
+    console.log("Groq API response:", JSON.stringify(data, null, 2));
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Unexpected Groq response format:", data);
+      return res.status(500).json({ error: "Invalid response from Groq API", details: data });
+    }
+
     const text = data.choices[0].message.content;
+    console.log("Groq message content:", text);
     const result = JSON.parse(text.replace(/```json|```/g, "").trim());
     res.json(result);
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Backend error:", err);
+    res.status(500).json({ error: `Backend error: ${err.message}` });
   }
 });
 

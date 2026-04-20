@@ -274,29 +274,19 @@
   </head>
   <body>
     <div class="header">
-      <div class="logo">🛡️</div>
+      <div class="logo"></div>
       <div>
-        <div class="title">AI Phishing Detector</div>
-        <div class="subtitle">Powered by Groq · LLaMA 3</div>
+        <div class="title">AI Email Phishing Detector</div>
+        <div class="subtitle">Powered by Groq LLaMA 3 · Backend Server</div>
       </div>
-    </div>
-
-    <!-- API Key Section -->
-    <div class="api-section">
-      <div class="api-label">🔑 Groq API Key</div>
-      <div class="api-input-row">
-        <input type="password" id="apiKeyInput" placeholder="gsk_..." />
-        <button class="save-btn" id="saveKeyBtn">Save</button>
-      </div>
-      <div class="key-status" id="keyStatus">No key saved yet.</div>
     </div>
 
     <button class="analyze-btn" id="analyzeBtn">
-      🔍 Analyze Current Email
+       Analyze Current Email
     </button>
 
     <div class="loading" id="loading">
-      <span class="spinner"></span> Analyzing with AI...
+      <span class="spinner"></span> Analyzing with Groq AI... 
     </div>
 
     <div class="result-card" id="resultCard">
@@ -315,6 +305,7 @@
 
     <div class="footer">Open an email in Gmail, then click Analyze</div>
 
+    <script src="config.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

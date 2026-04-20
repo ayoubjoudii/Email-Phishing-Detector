@@ -1,6 +1,6 @@
 let lastAnalyzedSubject = "";
 
-const observer = new MutationObserver(() => {
+const observer = new MutationObserver(async () => {
   const emailBody = document.querySelector(".a3s.aiL");
   const emailSubject = document.querySelector(".hP");
 
@@ -15,25 +15,18 @@ const observer = new MutationObserver(() => {
 
   showBanner("loading");
 
-  chrome.storage.local.get("groqApiKey", async ({ groqApiKey }) => {
-    if (!groqApiKey) {
-      showBanner("error", null, ["No API key set. Click the extension icon to add your Groq key."]);
-      return;
-    }
-
-    const emailText = `Subject: ${subject}\n\n${emailBody.innerText}`;
+  const emailText = `Subject: ${subject}\n\n${emailBody.innerText}`;
     try {
-      const result = await analyzeWithGroq(emailText, groqApiKey);
+      const result = await analyzeWithBackend(emailText);
       showBanner(result.verdict, result.confidence, result.reasons, result.red_flags);
     } catch (err) {
       showBanner("error", null, [`API Error: ${err.message}`]);
     }
-  });
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Listen for popup requests too
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "getEmailText") {
     const emailBody = document.querySelector(".a3s.aiL");
@@ -47,38 +40,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-async function analyzeWithGroq(emailText, apiKey) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are a cybersecurity expert. Analyze this email for phishing.
-Return ONLY a JSON object with:
-- "verdict": "phishing" or "legitimate"
-- "confidence": number 0-100
-- "reasons": array of short explanation strings
-- "red_flags": array of specific suspicious elements (empty array if none)
+async function analyzeWithBackend(emailText) {
+  console.log("[Phishing Detector] Analyzing email with backend...");
+  console.log("[Phishing Detector] Backend URL:", BACKEND_URL);
+  
+  try {
+    const response = await fetch(`${BACKEND_URL}/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ emailText })
+    });
 
-Email:
-"""
-${emailText}
-"""
+    console.log("[Phishing Detector] Response status:", response.status);
+    
+    const data = await response.json();
+    console.log("[Phishing Detector] Backend response:", data);
 
-JSON only, no extra text.`
-      }]
-    })
-  });
+    if (!response.ok) {
+      const errorMsg = data.error || `Backend error: ${response.status}`;
+      console.error("[Phishing Detector] Backend error:", errorMsg);
+      throw new Error(errorMsg);
+    }
 
-  const data = await response.json();
-  const text = data.choices[0].message.content;
-  return JSON.parse(text.replace(/```json|```/g, "").trim());
+    console.log("[Phishing Detector] Analysis result:", data);
+    return data;
+  } catch (err) {
+    console.error("[Phishing Detector] Error:", err.message);
+    throw err;
+  }
 }
 
 function showBanner(type, confidence, reasons = [], redFlags = []) {
