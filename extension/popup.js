@@ -86,29 +86,68 @@ function displayResult(result) {
   const card = document.getElementById("resultCard");
 
   card.className = `result-card ${isPhishing ? "phishing" : "legitimate"}`;
-  document.getElementById("verdictLabel").textContent = isPhishing ? "🚨 Phishing Detected" : "✅ Looks Legitimate";
-  document.getElementById("confidenceBadge").textContent = `${result.confidence}% confidence`;
+  document.getElementById("verdictLabel").textContent = isPhishing
+    ? "// PHISHING DETECTED"
+    : "// TARGET CLEAN";
 
-  const reasonsList = document.getElementById("reasonsList");
-  reasonsList.innerHTML = result.reasons.map(r => `<li>${r}</li>`).join("");
+  document.getElementById("confidenceBarFill").style.width = result.confidence + "%";
+  document.getElementById("confidencePct").textContent = result.confidence + "% CONFIDENCE";
+
+  document.getElementById("reasonsList").innerHTML =
+    result.reasons.map(r => `<li>${r}</li>`).join("");
 
   const redFlagsSection = document.getElementById("redFlagsSection");
   const redFlagsList = document.getElementById("redFlagsList");
-  if (result.red_flags && result.red_flags.length > 0) {
+  if (result.red_flags?.length > 0) {
     redFlagsList.innerHTML = result.red_flags.map(f => `<li>${f}</li>`).join("");
     redFlagsSection.style.display = "block";
   } else {
     redFlagsSection.style.display = "none";
   }
-
+updateStatusBar(result.verdict);
   card.style.display = "block";
 }
+// ── Status bar glow ───────────────────────────────────────────────────────────
+// Call this inside displayResult() after setting card className
+function updateStatusBar(verdict) {
+  const bar = document.getElementById("statusBar");
+  bar.className = "status-bar " + (verdict === "phishing" ? "phishing" : "legitimate");
+}
 
+// Update displayResult to call it — add this line inside your displayResult function:
+// updateStatusBar(result.verdict);
+
+
+// ── Auto-scan toggle ──────────────────────────────────────────────────────────
+const toggle = document.getElementById("autoScanToggle");
+const toggleStatus = document.getElementById("toggleStatus");
+
+// Load saved state
+chrome.storage.local.get("autoScan", ({ autoScan }) => {
+  const isOn = autoScan !== false; // default ON
+  toggle.checked = isOn;
+  toggleStatus.textContent = isOn ? "● ON" : "○ OFF";
+  toggleStatus.style.color = isOn ? "#22c55e" : "#f43f5e";
+});
+
+// Save on change + notify content.js
+toggle.addEventListener("change", () => {
+  const isOn = toggle.checked;
+  chrome.storage.local.set({ autoScan: isOn });
+  toggleStatus.textContent = isOn ? "● ON" : "○ OFF";
+  toggleStatus.style.color = isOn ? "#22c55e" : "#f43f5e";
+
+  // Tell the Gmail tab to update
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+    if (tab) chrome.tabs.sendMessage(tab.id, { action: "setAutoScan", value: isOn });
+  });
+});
 function showError(msg) {
   const card = document.getElementById("resultCard");
   card.className = "result-card error";
-  document.getElementById("verdictLabel").textContent = "⚠️ Error";
-  document.getElementById("confidenceBadge").textContent = "";
+  document.getElementById("verdictLabel").textContent = "// ERROR";
+  document.getElementById("confidenceBarFill").style.width = "0%";
+  document.getElementById("confidencePct").textContent = "";
   document.getElementById("reasonsList").innerHTML = `<li>${msg}</li>`;
   document.getElementById("redFlagsSection").style.display = "none";
   card.style.display = "block";
